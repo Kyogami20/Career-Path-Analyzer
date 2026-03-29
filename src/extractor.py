@@ -1,10 +1,24 @@
 import requests
 import json
+import time
+import logging
 
 from pathlib import Path
 
-WIKI_URL = ""
+#Forma de ver los errores o warnings de una manera diferente en vez de usar Pirnt
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+logger = logging.getLogger(__name__)
 
+#Variables constantes
+WIKIDATA_ENDPOINT = "https://query.wikidata.org/sparql"
+REQUEST_TIMEOUT = 30
+RETRY_WAIT = 5
+MAX_RETRIES = 3
+
+#Función que crea la sentencia SPARQL para enviar al servidor
 def build_query(limit: int, offset: int) -> str:
     """
     Construye la query SPARQL para obtener personas del área tech.
@@ -44,6 +58,31 @@ def build_query(limit: int, offset: int) -> str:
     OFFSET {offset}
     """
 
-if __name__ == "__main__":
-    query = build_query(limit=100, offset=0)
-    print(query)
+def fetch_data(sparql: str) -> dict | None:
+
+    for intento in range(1, MAX_RETRIES + 1):
+        try:
+            response = requests.get(WIKIDATA_ENDPOINT, 
+                                headers = {
+                                            "User-Agent": "CareerPathAnalyzer/1.0 (proyecto educativo)",
+                                            "Accept":     "application/sparql-results+json"
+                                        },
+                                params={ "query": sparql, "format": "json"},
+                                timeout = REQUEST_TIMEOUT)
+            response.raise_for_status()
+            return response.json()
+
+        except requests.exceptions.Timeout as e:
+            logger.warning(f"Timeout en intento {intento}/{MAX_RETRIES}: {e}")
+
+        except requests.exceptions.HTTPError as e:
+            logger.error(f"HTTP error: {e}")
+        
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Error while fetching data: {e}")
+        
+        if intento < MAX_RETRIES: time.sleep(RETRY_WAIT)
+
+    logger.error("Number of attempts failed")
+    return None
+
