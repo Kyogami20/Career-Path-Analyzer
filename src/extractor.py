@@ -58,17 +58,19 @@ def build_query(limit: int, offset: int) -> str:
     OFFSET {offset}
     """
 
+#Función que trae el json de los datos de la url de Wikidata
 def fetch_data(sparql: str) -> dict | None:
+
+    headers = {
+        "User-Agent": "CareerPathAnalyzer/1.0 (proyecto educativo)",
+        "Accept":     "application/sparql-results+json"
+    }
+
+    params = { "query": sparql, "format": "json"}
 
     for intento in range(1, MAX_RETRIES + 1):
         try:
-            response = requests.get(WIKIDATA_ENDPOINT, 
-                                headers = {
-                                            "User-Agent": "CareerPathAnalyzer/1.0 (proyecto educativo)",
-                                            "Accept":     "application/sparql-results+json"
-                                        },
-                                params={ "query": sparql, "format": "json"},
-                                timeout = REQUEST_TIMEOUT)
+            response = requests.get(WIKIDATA_ENDPOINT, headers = headers, params = params, timeout = REQUEST_TIMEOUT)
             response.raise_for_status()
             return response.json()
 
@@ -86,3 +88,20 @@ def fetch_data(sparql: str) -> dict | None:
     logger.error("Number of attempts failed")
     return None
 
+#Función para parsear la data de el json
+def parse_response(raw: dict) -> list[dict]:
+    try:
+        bindings = raw["results"]["bindings"]
+    except Exception as e:
+        logger.error(f"Error while tracking bindings from Wikidata: {e}")
+        return []
+    
+    result = list()
+    for item in bindings:
+        result.append({key: item[key]["value"] for key in item })
+
+    logger.info(f"Parsed {len(result)} records from response.")
+    return result
+
+
+    
