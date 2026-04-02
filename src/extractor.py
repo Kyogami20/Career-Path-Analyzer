@@ -109,16 +109,45 @@ def save_raw(results: list[dict], file_name: str = "people.json") -> Path | None
 
     try:
         directory = Path("data/raw")
-        directory.mkdir(parents= True, exist_ok= False)
+        directory.mkdir(parents= True, exist_ok= True)
         file = directory / file_name
-    except: 
-        logger.error(f"We ccouldn't creat the data o raw directory")
+
+        with open(file, "w", encoding="utf-8") as fh:
+            json.dump(results, fh, ensure_ascii= False, indent= 2)
+            logger.info(f"Saved {len(results)} records to {file}")
+            return file
+        
+    except OSError as e: 
+        logger.error(f"We ccouldn't creat the data o raw directory {e}")
         return None
 
-    with open(file, "w", encoding="utf-8") as fh:
-        json.dump(results, fh, ensure_ascii= False, indent= 2)
+#Función extracctora
+def extract(max_records: int = 500) -> list[dict]:
+    offset = 0
+    all_records = []
 
-    logger.info(f"Saved {len(results)} records to {file}")
-    return file
+    while offset < max_records:
+        limit = min(100, max_records - offset)
+        query = build_query(limit, offset = offset)
 
+        data_raw = fetch_data(query)
+        if not data_raw:
+            logger.error("Extraction stopped due to fetch failure.") 
+            break
 
+        records = parse_response(data_raw)
+        if not records:
+            logger.info("No more records returned. Extraction complete.") 
+            break
+
+        all_records.extend(records)
+        offset += len(records)
+
+        time.sleep(1)
+
+    save_raw(all_records)
+    return all_records
+
+if __name__ == "__main__":
+    records = extract(max_records=100)
+    print(f"Total extraídos: {len(records)}")
