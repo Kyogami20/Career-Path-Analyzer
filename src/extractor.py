@@ -104,4 +104,21 @@ def parse_response(raw: dict) -> list[dict]:
     return result
 
 
-    
+#Funcione para guardar los datos en un json 
+def save_raw(results: list[dict], file_name: str = "people.json") -> Path | None:
+
+    try:
+        directory = Path("data/raw")
+        directory.mkdir(parents= True, exist_ok= False)
+        file = directory / file_name
+    except: 
+        logger.error(f"We ccouldn't creat the data o raw directory")
+        return None
+
+    with open(file, "w", encoding="utf-8") as fh:
+        json.dump(results, fh, ensure_ascii= False, indent= 2)
+
+    logger.info(f"Saved {len(results)} records to {file}")
+    return file
+
+
