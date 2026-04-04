@@ -1,4 +1,5 @@
 import logging
+import re
 
 logging.basicConfig(
     level= logging.INFO,
@@ -6,3 +7,10 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+def extract_ID(url: str) -> str:
+    if not url:
+        logger.warning("Not url given")
+        return ""
+    
+    return url.split("/")[-1]
